@@ -2,8 +2,9 @@
 .DS_Store
 venv
 
-folderify_test
+*.vcf
 
+folderify_test
 renamer_replacements
 renamer_backups
 renamer_test_files
