@@ -134,7 +134,7 @@ def print_help():
 Usage: vcf_analyzer.py [OPTIONS]
 
 Options:
-  -c, --create FILE,FN[,TEL,EMAIL]  CREATE: Create a new contact and add it to the specified VCF file.
+  -n, --new FILE,FN[,TEL,EMAIL]     NEW: Create a new contact and add it to the specified VCF file.
   -r, --report FILE                 REPORT: Generate a contact report from the specified VCF file.
   -m, --memberships FILE            MEMBERSHIPS: Display membership groups from the specified VCF file.
   -s, --split FILE                  SPLIT: Split the specified VCF file into individual files.
@@ -161,7 +161,7 @@ def main():
 
     try:
         opts, _ = getopt.getopt(
-            sys.argv[1:], "c:r:m:s:h", ["create=", "report=", "memberships=", "split=", "help"]
+            sys.argv[1:], "n:r:m:s:h", ["new=", "report=", "memberships=", "split=", "help"]
         )
     except getopt.GetoptError as err:
         print(err)
@@ -169,7 +169,7 @@ def main():
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt in ("-c", "--create"):
+        if opt in ("-n", "--new"):
             details = arg.split(",")
             if len(details) < 2:
                 print("ERROR: FILE and FN (Full Name) are required.")
