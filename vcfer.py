@@ -4,7 +4,7 @@ import sys
 import getopt
 from collections import defaultdict
 
-class VCFAnalyzer:
+class VCF:
     def __init__(self, file_path):
         self.file_path = file_path
         self.contacts = []
@@ -27,6 +27,23 @@ class VCFAnalyzer:
         except Exception as e:
             print(f"ERROR: Could not load VCF file: {e}")
             sys.exit(2)
+
+    def tally_contents(self):
+        self.tally.clear()
+
+        for contact in self.contacts:
+            if hasattr(contact, 'fn'):
+                self.tally['Contacts with Full Name (FN)'] += 1
+            if hasattr(contact, 'n'):
+                self.tally['Contacts with Display Name (N)'] += 1
+            if hasattr(contact, 'tel_list') and len(contact.tel_list) > 1:
+                self.tally['Contacts with Multiple Numbers'] += 1
+            if hasattr(contact, 'email_list') and len(contact.email_list) > 1:
+                self.tally['Contacts with Multiple Emails'] += 1
+            if hasattr(contact, 'bday'):
+                self.tally['Contacts with Birthdays'] += 1
+            if hasattr(contact, 'member_list'):
+                self.tally['Contacts with Memberships'] += len(contact.member_list)
 
     def create_contact(self, fn, tel=None, email=None):
         new_contact = vobject.vCard()
@@ -90,22 +107,9 @@ class VCFAnalyzer:
             print(f"INFO: VCF merge completed. Output saved to {output_file}.")
         except Exception as e:
             print(f"ERROR:  writing to {output_file}: {e}")
-    def tally_contents(self):
-        self.tally.clear()
 
-        for contact in self.contacts:
-            if hasattr(contact, 'fn'):
-                self.tally['Contacts with Full Name (FN)'] += 1
-            if hasattr(contact, 'n'):
-                self.tally['Contacts with Display Name (N)'] += 1
-            if hasattr(contact, 'tel_list') and len(contact.tel_list) > 1:
-                self.tally['Contacts with Multiple Numbers'] += 1
-            if hasattr(contact, 'email_list') and len(contact.email_list) > 1:
-                self.tally['Contacts with Multiple Emails'] += 1
-            if hasattr(contact, 'bday'):
-                self.tally['Contacts with Birthdays'] += 1
-            if hasattr(contact, 'member_list'):
-                self.tally['Contacts with Memberships'] += len(contact.member_list)
+        
+
 
     def generate_report(self):
         if not self.tally:
@@ -162,14 +166,14 @@ def main():
             file_path, fn = details[0], details[1]
             tel = details[2] if len(details) > 2 else None
             email = details[3] if len(details) > 3 else None
-            analyzer = VCFAnalyzer(file_path)
+            analyzer = VCF(file_path)
             analyzer.create_contact(fn, tel, email)
         elif opt in ("-r", "--report"):
-            analyzer = VCFAnalyzer(arg)
+            analyzer = VCF(arg)
             analyzer.tally_contents()
             analyzer.generate_report()
         elif opt in ("-s", "--split"):
-            analyzer = VCFAnalyzer(arg)
+            analyzer = VCF(arg)
             output_folder = os.path.splitext(arg)[0]
             analyzer.split_vcf(output_folder)
         elif opt in ("-h", "--help"):
