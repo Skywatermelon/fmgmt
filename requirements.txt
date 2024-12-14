@@ -1,0 +1,6 @@
+python-dateutil==2.9.0.post0
+pytz==2024.2
+Send2Trash==1.8.3
+six==1.17.0
+tomli==2.0.1
+vobject==0.9.8
