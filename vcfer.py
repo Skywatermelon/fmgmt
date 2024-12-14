@@ -14,7 +14,7 @@ class VCFAnalyzer:
         if os.path.exists(file_path):
             self.load_vcf()
         else:
-            print(f"Error: File '{file_path}' not found.")
+            print(f"ERROR: File '{file_path}' not found.")
             sys.exit(2)
 
     def load_vcf(self):
@@ -23,9 +23,9 @@ class VCFAnalyzer:
                 vcf_data = file.read()
             self.contacts = list(vobject.readComponents(vcf_data))
             self.total_contacts = len(self.contacts)
-            print(f"Loaded {self.total_contacts} contacts.")
+            print(f"INFO: Loaded {self.total_contacts} contacts.")
         except Exception as e:
-            print(f"Error loading VCF file: {e}")
+            print(f"ERROR: Could not load VCF file: {e}")
             sys.exit(2)
 
     def create_contact(self, fn, tel=None, email=None):
@@ -47,7 +47,7 @@ class VCFAnalyzer:
                     file.write(contact.serialize())
             print(f"VCF file updated: {output_file}.")
         except Exception as e:
-            print(f"Error exporting VCF file: {e}")
+            print(f"ERROR: Could not export VCF file: {e}")
 
     def split_vcf(self, output_folder):
         if not os.path.exists(output_folder):
@@ -64,10 +64,10 @@ class VCFAnalyzer:
                     file.write(contact.serialize())
                 print(f"Exported {full_name}.vcf")
             except Exception as e:
-                print(f"Error exporting {full_name}.vcf: {e}")
+                print(f"ERROR: Could not export VCF file: {full_name}.vcf: {e}")
     def merge_vcf(directory, output_file):
         if not os.path.isdir(directory):
-            print(f"Error: '{directory}' is not a valid directory.")
+            print(f"ERROR: '{directory}' is not a valid directory.")
             return
 
         merged_contacts = []
@@ -79,17 +79,17 @@ class VCFAnalyzer:
                         vcf_data = file.read()
                         contacts = list(vobject.readComponents(vcf_data))
                         merged_contacts.extend(contacts)
-                        print(f"Merged: {file_name}")
+                        print(f"INFO: Merged: {file_name}")
                 except Exception as e:
-                    print(f"Error reading {file_name}: {e}")
+                    print(f"ERROR: Could not read VCF file {file_name}: {e}")
 
         try:
             with open(output_file, 'w') as file:
                 for contact in merged_contacts:
                     file.write(contact.serialize())
-            print(f"VCF merge completed. Output saved to {output_file}.")
+            print(f"INFO: VCF merge completed. Output saved to {output_file}.")
         except Exception as e:
-            print(f"Error writing to {output_file}: {e}")
+            print(f"ERROR:  writing to {output_file}: {e}")
     def tally_contents(self):
         self.tally.clear()
 
@@ -109,7 +109,7 @@ class VCFAnalyzer:
 
     def generate_report(self):
         if not self.tally:
-            print("No data to report. Run `tally_contents()` first.")
+            print("ERROR: No data to report.")
             return
 
         print("\nVCF File Analysis Report:")
@@ -128,11 +128,11 @@ def print_help():
 Usage: vcf_analyzer.py [OPTIONS]
 
 Options:
-  -c, --create FILE,FN[,TEL,EMAIL]  Create a new contact and add it to the specified VCF file.
-  -r, --report FILE                 Generate a contact report from the specified VCF file.
-  -m, --memberships FILE            Display membership groups from the specified VCF file.
-  -s, --split FILE                  Split the specified VCF file into individual files.
-  -h, --help                        Display this help text.
+  -c, --create FILE,FN[,TEL,EMAIL]  CREATE: Create a new contact and add it to the specified VCF file.
+  -r, --report FILE                 REPORT: Generate a contact report from the specified VCF file.
+  -m, --memberships FILE            MEMBERSHIPS: Display membership groups from the specified VCF file.
+  -s, --split FILE                  SPLIT: Split the specified VCF file into individual files.
+  -h, --help                        HELP: Display this help text.
 
 Examples:
   python vcf_analyzer.py -c "contacts.vcf,John Doe,+123456789,john@example.com"
@@ -157,7 +157,7 @@ def main():
         if opt in ("-c", "--create"):
             details = arg.split(",")
             if len(details) < 2:
-                print("Error: FILE and FN (Full Name) are required.")
+                print("ERROR: FILE and FN (Full Name) are required.")
                 sys.exit(2)
             file_path, fn = details[0], details[1]
             tel = details[2] if len(details) > 2 else None
