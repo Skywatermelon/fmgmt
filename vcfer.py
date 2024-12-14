@@ -3,7 +3,7 @@ import os
 import sys
 import getopt
 from collections import defaultdict
-
+from pathlib import Path
 class VCF:
     def __init__(self, file_path):
         self.file_path = file_path
@@ -79,7 +79,7 @@ class VCF:
             try:
                 with open(contact_file, 'w') as file:
                     file.write(contact.serialize())
-                print(f"Exported {full_name}.vcf")
+                print(f"INFO: Exported {full_name}.vcf")
             except Exception as e:
                 print(f"ERROR: Could not export VCF file: {full_name}.vcf: {e}")
     def merge_vcf(directory, output_file):
@@ -146,8 +146,17 @@ Examples:
     """
     print(help_text)
 
+def get_download_folder():
+    if os.name == 'nt':  # Windows
+        download_folder = Path(os.getenv('USERPROFILE')) / 'Downloads'
+    else:  # macOS and Linux
+        download_folder = Path.home() / 'Downloads'
+    return download_folder
 
 def main():
+
+    output_path = "./"
+
     try:
         opts, _ = getopt.getopt(
             sys.argv[1:], "c:r:m:s:h", ["create=", "report=", "memberships=", "split=", "help"]
@@ -174,8 +183,9 @@ def main():
             analyzer.generate_report()
         elif opt in ("-s", "--split"):
             analyzer = VCF(arg)
-            output_folder = os.path.splitext(arg)[0]
-            analyzer.split_vcf(output_folder)
+            output_path = os.path.join(get_download_folder(), arg)
+            analyzer.split_vcf(output_path)
+            print(f"INFO: Split VCF files ouputted to {output_path}")
         elif opt in ("-h", "--help"):
             print_help()
             sys.exit()
