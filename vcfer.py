@@ -4,6 +4,8 @@ import sys
 import getopt
 from collections import defaultdict
 from pathlib import Path
+from utils.selection_menu import SelectionMenu
+
 class VCF:
     def __init__(self, file_path):
         self.file_path = file_path
