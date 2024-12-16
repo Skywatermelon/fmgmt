@@ -1,9 +1,14 @@
+## Environment Files
+
 .history
 .DS_Store
 venv
+__pycache__
 
+## Output Files
 *.vcf
 
+## Program & Script Output Folders
 folderify_test
 renamer_replacements
 renamer_backups
