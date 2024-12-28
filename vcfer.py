@@ -5,9 +5,9 @@ from datetime import datetime
 from pathlib import Path
 
 ### Local Imports
-from utils.selection_menu import SelectionMenu
 from utils.file_handler import FileHandler
-from utils.VCFManager import VCFManager
+from utils.vcf_manager import VCFManager
+from utils.directory_comparer import DirectoryComparer
 
 
 
@@ -24,6 +24,7 @@ Options:
   -r, --report FILE                 REPORT: Generate a contact report from the specified VCF file.
   -m, --memberships FILE            MEMBERSHIPS: Display membership groups from the specified VCF file.
   -s, --split FILE                  SPLIT: Split the specified VCF file into individual files.
+  -u, --uncommon FILE[DIR1, DIR2]   UNCOMMON: Compare and output the uncommon or different contacts between two directories.
   -c, --combine FILE                COMBINE: Combine a directory of VCF files into a single VCF file.
   -h, --help                        HELP: Display this help text.
 
@@ -52,8 +53,8 @@ def main():
 
     try:
         opts, _ = getopt.getopt(
-            sys.argv[1:], "i:o:n:r:s:c:h", 
-            ["input=", "output=", "new=", "report=", "split=", "combine=", "help"]
+            sys.argv[1:], "i:o:n:r:s:u:c:h", 
+            ["input=", "output=", "new=", "report=", "split=","uncommon=" "combine=", "help"]
         )
     except getopt.GetoptError as err:
         sys.exit(f"ERROR: {err}")
@@ -83,6 +84,10 @@ def main():
             output_directory = os.path.join(output_path, os.path.splitext(split_filename)[0])
             analyzer = VCFManager(input_path)
             analyzer.split_vcf(output_directory)
+        elif opt in ("-u", "--uncommon"):
+            uncommon_directories = arg.split(",")
+            dc = DirectoryComparer(dir1=uncommon_directories[0], dir2=uncommon_directories[1], output_dir=output_path)
+            dc.compare()
         elif opt in ("-c", "--combine"):
             analyzer = VCFManager(input_path)
             analyzer.combine_vcf(input_path, output_path)
