@@ -74,6 +74,7 @@ class VCFManager:
                     file.write(contact.serialize())
             except Exception as e:
                 print(f"ERROR: Could not export VCF file: {file_name}.vcf: {e}")
+                
     def combine_vcf(self, directory, output_file):
         """
         Combines multiple VCF files from a specified directory into a single VCF file.
