@@ -44,7 +44,6 @@ def get_download_folder():
     return download_folder
 
 def main():
-    file_handler = FileHandler()
     input_path = None
     output_path = os.path.join(
         get_download_folder(),
@@ -53,19 +52,20 @@ def main():
 
     try:
         opts, _ = getopt.getopt(
-            sys.argv[1:], "i:o:n:r:s:u:c:h", 
-            ["input=", "output=", "new=", "report=", "split=","uncommon=" "combine=", "help"]
+            sys.argv[1:], "i:o:n:r:su:c:h",
+            ["input=", "output=", "new=", "report=", "split", "uncommon=", "combine=", "help"]
         )
     except getopt.GetoptError as err:
         sys.exit(f"ERROR: {err}")
 
+    flag_split_contacts = None
+    uncommon_directories = None
+
     for opt, arg in opts:
         if opt in ("-i", "--input"):
             input_path = arg
-            file_handler.set_input(input_path)
         elif opt in ("-o", "--output"):
             output_path = arg
-            file_handler.set_output(output_path)
         elif opt in ("-n", "--new"):
             details = arg.split(",")
             if len(details) < 2:
@@ -76,27 +76,50 @@ def main():
             analyzer = VCFManager(file_path)
             analyzer.create_contact(fn, tel, email)
         elif opt in ("-r", "--report"):
-            analyzer = VCFManager(arg)
+            if not input_path:
+                sys.exit("ERROR: Input path is required for reporting (-i).")
+            analyzer = VCFManager(input_path)
             analyzer.tally_contents()
             analyzer.generate_report()
         elif opt in ("-s", "--split"):
-            split_filename = arg
-            output_directory = os.path.join(output_path, os.path.splitext(split_filename)[0])
-            analyzer = VCFManager(input_path)
-            analyzer.split_vcf(output_directory)
+            flag_split_contacts = True
         elif opt in ("-u", "--uncommon"):
             uncommon_directories = arg.split(",")
-            dc = DirectoryComparer(dir1=uncommon_directories[0], dir2=uncommon_directories[1], output_dir=output_path)
-            dc.compare()
+            if len(uncommon_directories) != 2:
+                sys.exit("ERROR: Two directories are required for uncommon comparison (-u).")
         elif opt in ("-c", "--combine"):
-            analyzer = VCFManager(input_path)
-            analyzer.combine_vcf(input_path, output_path)
+            if not input_path:
+                sys.exit("ERROR: Input directory is required for combining (-i).")
         elif opt in ("-h", "--help"):
             print_help()
             sys.exit()
 
-    # if not file_handler.input_file or not file_handler.output_file:
-    #     sys.exit("ERROR: Both input and output must be specified.")
+    # Validate input and output paths
+    if not input_path:
+        sys.exit("ERROR: Input path is required (-i).")
+    if not os.path.exists(input_path):
+        sys.exit(f"ERROR: Input path '{input_path}' does not exist.")
+    if not os.path.exists(output_path):
+        os.makedirs(output_path, exist_ok=True)
 
-if __name__ == "__main__":
-    main()
+    # Handle split functionality
+    if flag_split_contacts:
+        analyzer = VCFManager(input_path)
+        analyzer.split_vcf(output_path)
+        print(f"INFO: Split files saved in '{os.path.join(output_path, 'split')}'")
+
+    # Handle uncommon comparison functionality
+    if uncommon_directories:
+        dc = DirectoryComparer(
+            dir1=uncommon_directories[0],
+            dir2=uncommon_directories[1],
+            output_dir=output_path
+        )
+        dc.compare()
+        print(f"INFO: Uncommon files saved in '{os.path.join(output_path, 'uncommon')}'")
+
+    # Handle combine functionality
+    if input_path and os.path.isdir(input_path):
+        analyzer = VCFManager(input_path)
+        analyzer.combine_vcf(input_path, output_path)
+        print(f"INFO: Combined files saved in '{output_path}'")

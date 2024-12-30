@@ -38,13 +38,14 @@ class VCFManager:
             print(f"ERROR: Could not load VCF file: {e}")
             sys.exit(2)
 
-    def split_vcf(self, output_folder):
+    def split_vcf(self, output_path):
         """
         Splits the contacts in the VCF file into individual files, one for each contact.
-        Files are saved in the specified output folder.
+        Files are saved in a folder named 'split' within the specified output path.
         """
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        # Create a 'split' directory within the output path
+        split_folder = os.path.join(output_path, "split")
+        os.makedirs(split_folder, exist_ok=True)
 
         unknown_contact_counter = 1
 
@@ -64,14 +65,15 @@ class VCFManager:
             if hasattr(contact, 'categories'):
                 contact.categories.value = [cat.replace(" ", "_") for cat in contact.categories.value]
 
-            contact_file = os.path.join(output_folder, f"{file_name}.vcf")
+            # Generate the path for the contact file
+            contact_file = os.path.join(split_folder, f"{file_name}.vcf")
 
             try:
+                # Write the contact to a file
                 with open(contact_file, 'w') as file:
                     file.write(contact.serialize())
             except Exception as e:
                 print(f"ERROR: Could not export VCF file: {file_name}.vcf: {e}")
-
     def combine_vcf(self, directory, output_file):
         """
         Combines multiple VCF files from a specified directory into a single VCF file.
