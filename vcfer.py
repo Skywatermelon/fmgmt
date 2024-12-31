@@ -96,13 +96,13 @@ def main():
             print_help()
             sys.exit()
 
-    # Validate input and output paths
-    if not input_path:
-        sys.exit("ERROR: Input path is required (-i).")
-    if not os.path.exists(input_path):
-        sys.exit(f"ERROR: Input path '{input_path}' does not exist.")
-    if not os.path.exists(output_path):
-        os.makedirs(output_path, exist_ok=True)
+    # # Validate input and output paths
+    # if not input_path:
+    #     sys.exit("ERROR: Input path is required (-i).")
+    # if not os.path.exists(input_path):
+    #     sys.exit(f"ERROR: Input path '{input_path}' does not exist.")
+    # if not os.path.exists(output_path):
+    #     os.makedirs(output_path, exist_ok=True)
 
     # Handle split functionality
     if flag_split_contacts:

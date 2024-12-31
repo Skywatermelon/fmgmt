@@ -13,10 +13,10 @@ class VCFManager:
         """
         Initializes the VCFManager with the provided file path. Validates the file's existence.
         """
-        self.file_path = file_path
-        self.contacts = []  # List to store individual contact objects
-        self.tally = defaultdict(int)  # Dictionary to keep track of contact statistics
-        self.total_contacts = 0  # Counter for the total number of contacts
+        self.file_path = file_path # Path to concatanated contacts file.
+        self.contacts = []  # List to store individual contact objects.
+        self.tally = defaultdict(int)  # Dictionary to keep track of contact statistics.
+        self.total_contacts = 0  # Counter for the total number of contacts.
 
         if os.path.exists(file_path):
             self.load_vcf()
@@ -47,18 +47,18 @@ class VCFManager:
         split_folder = os.path.join(output_path, "split")
         os.makedirs(split_folder, exist_ok=True)
 
-        unknown_contact_counter = 1
+        unknown_contact_counter = 0 # Initialise unknown contact tally.
 
         for contact in self.contacts:
-            # Determine the file name based on available contact details
-            if hasattr(contact, 'fn') and contact.fn.value.strip():
+            # Determine the file name based on available contact details.
+            if hasattr(contact, 'fn') and contact.fn.value.strip(): # Check full name attribute first.
                 file_name = contact.fn.value.replace(" ", "_")
-            elif hasattr(contact, 'n') and (contact.n.value.given or contact.n.value.family):
+            elif hasattr(contact, 'n') and (contact.n.value.given or contact.n.value.family): # Check name fields second.
                 first_name = contact.n.value.given if contact.n.value.given else "Unknown"
                 last_name = contact.n.value.family if contact.n.value.family else "Unknown"
                 file_name = f"{first_name}_{last_name}".replace(" ", "_")
             else:
-                file_name = f"unknown_contact_{unknown_contact_counter:04d}"
+                file_name = f"unknown_contact_{unknown_contact_counter:04d}" # Assign unknown contact label if no names found.
                 unknown_contact_counter += 1
 
             # Normalize CATEGORIES field to ensure compatibility
@@ -74,7 +74,7 @@ class VCFManager:
                     file.write(contact.serialize())
             except Exception as e:
                 print(f"ERROR: Could not export VCF file: {file_name}.vcf: {e}")
-                
+
     def combine_vcf(self, directory, output_file):
         """
         Combines multiple VCF files from a specified directory into a single VCF file.
@@ -129,6 +129,28 @@ class VCFManager:
                 self.tally['Contacts with Birthdays'] += 1
             if hasattr(contact, 'categories'):
                 self.tally['Contacts with Categories'] += 1
+
+    def assign_group(self, contacts, group_name):
+        """
+        Assigns a group name to the provided list of contact objects.
+        Skips contacts that are already assigned to the specified group.
+        Maintains existing groups for each contact.
+        
+        Args:
+            contacts (list): List of contact objects to be assigned to the group.
+            group_name (str): Name of the group to assign.
+        """
+        for contact in contacts:
+            # Ensure the contact has a categories attribute
+            if not hasattr(contact, 'categories'):
+                contact.add('categories').value = []
+
+            # Check if the group name already exists in the contact's categories
+            if group_name in contact.categories.value:
+                continue  # Skip if the contact is already in the group
+
+            # Add the new group while preserving existing groups
+            contact.categories.value.append(group_name)
 
     def generate_report(self):
         """
