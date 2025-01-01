@@ -42,7 +42,7 @@ def get_download_folder():
     return download_folder
 
 def main():
-    input_path = None
+    input_paths = None
     output_path = os.path.join(
         get_download_folder(),
         f"vcfer_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
@@ -50,22 +50,23 @@ def main():
 
     try:
         opts, _ = getopt.getopt(
-            sys.argv[1:], "i:o:n:r:su:c:h",
-            ["input=", "output=", "new=", "report=", "split", "uncommon=", "combine=", "help"]
+            sys.argv[1:], "i:o:n:r:such",
+            ["input=", "output=", "new=", "report=", "split", "uncommon", "combine", "help"]
         )
     except getopt.GetoptError as err:
         sys.exit(f"ERROR: {err}")
 
     flag_split_contacts = False
-    uncommon_directories = None
+    flag_uncommon_files = False
+    flag_combine_files = False
+
+    file_handler = FileHandler()
 
     for opt, arg in opts:
         if opt in ("-i", "--input"):
-            input_path = arg
-            print(f"INFO: Input file: {input_path}")
+            input_paths = arg
         elif opt in ("-o", "--output"):
             output_path = arg
-            print(f"INFO: Output file: {output_path}")
         elif opt in ("-n", "--new"):
             details = arg.split(",")
             if len(details) < 2:
@@ -76,58 +77,72 @@ def main():
             analyzer = VCFManager(file_path)
             analyzer.create_contact(fn, tel, email)
         elif opt in ("-r", "--report"):
-            if not input_path:
+            if not input_paths:
                 sys.exit("ERROR: Input path is required for reporting (-i).")
-            analyzer = VCFManager(input_path)
+            file_handler.set_inputs(input_paths)
+            if len(file_handler.input_files) != 1 or not os.path.isfile(file_handler.input_files[0]):
+                sys.exit("ERROR: Reporting requires a single VCF file as input.")
+            analyzer = VCFManager(file_handler.input_files[0])
             analyzer.tally_contents()
             analyzer.generate_report()
         elif opt in ("-s", "--split"):
             flag_split_contacts = True
-            print(f"INFO: Split functionality triggered.")
         elif opt in ("-u", "--uncommon"):
-            uncommon_directories = arg.split(",")
-            if len(uncommon_directories) != 2:
-                sys.exit("ERROR: Two directories are required for uncommon comparison (-u).")
+            flag_uncommon_files = True
+            file_handler.set_inputs(arg)
+            if file_handler.count_input_files() != 2 or not file_handler.input_is_directory:
+                sys.exit("ERROR: Uncommon comparison requires exactly two directories.")
+            for path in file_handler.input_files:
+                if not file_handler.has_file_type(".vcf", is_input=True):
+                    sys.exit(f"ERROR: Directory '{path}' must contain at least one .vcf file.")
         elif opt in ("-c", "--combine"):
-            print(f"INFO: Combine functionality triggered.")
-            if not input_path:
-                sys.exit("ERROR: Input directory is required for combining (-i).")
+            flag_combine_files = True
+            file_handler.set_inputs(input_paths)
+            if file_handler.count_input_files() != 1 or not file_handler.input_is_directory:
+                sys.exit("ERROR: Combine requires exactly one directory containing .vcf files.")
+            if not file_handler.has_file_type(".vcf", is_input=True):
+                sys.exit("ERROR: The directory must contain at least one .vcf file.")
         elif opt in ("-h", "--help"):
             print_help()
             sys.exit()
 
-    # # Validate input and output paths
-    # if not input_path:
-    #     sys.exit("ERROR: Input path is required (-i).")
-    # if not os.path.exists(input_path):
-    #     sys.exit(f"ERROR: Input path '{input_path}' does not exist.")
-    # if not os.path.exists(output_path):
-    #     os.makedirs(output_path, exist_ok=True)
+    # Validate output path
+    if not os.path.exists(output_path):
+        os.makedirs(output_path, exist_ok=True)
 
     # Handle split functionality
     if flag_split_contacts:
-        if not os.path.isfile(input_path):
-            sys.exit("ERROR: Split requires a valid input VCF file (-i).")
-        analyzer = VCFManager(input_path)
+        file_handler.set_inputs(input_paths)
+        if file_handler.count_input_files() != 1 or not os.path.isfile(file_handler.input_files[0]):
+            sys.exit("ERROR: Split requires exactly one VCF file as input.")
+        analyzer = VCFManager(file_handler.input_files[0])
         analyzer.split_vcf(output_path)
         print(f"INFO: Split files saved in '{os.path.join(output_path, 'split')}'")
 
     # Handle uncommon comparison functionality
-    if uncommon_directories:
-        if not all(os.path.isdir(dir) for dir in uncommon_directories):
-            sys.exit("ERROR: Both directories specified for uncommon comparison (-u) must exist.")
+    if flag_uncommon_files:
+        directories = file_handler.input_files
         dc = DirectoryComparer(
-            dir1=uncommon_directories[0],
-            dir2=uncommon_directories[1],
+            dir1=directories[0],
+            dir2=directories[1],
             output_dir=output_path
         )
         dc.compare()
         print(f"INFO: Uncommon files saved in '{os.path.join(output_path, 'uncommon')}'")
 
     # Handle combine functionality
-    if input_path and os.path.isdir(input_path):
-        analyzer = VCFManager(input_path)
-        analyzer.combine_vcf(input_path, output_path)
+    if flag_combine_files:
+        directory = file_handler.input_files[0]
+        
+        # Ensure output file ends with .vcf
+        if not output_path.lower().endswith(".vcf"):
+            if "." in os.path.basename(output_path):
+                sys.exit("ERROR: Output file must have a .vcf extension.")
+            else:
+                output_path += ".vcf"
+
+        analyzer = VCFManager(directory, directory_mode=True)
+        analyzer.combine_vcf(output_file=output_path)
         print(f"INFO: Combined files saved in '{output_path}'")
 
 if __name__ == "__main__":

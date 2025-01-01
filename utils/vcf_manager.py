@@ -9,11 +9,17 @@ class VCFManager:
     creating contacts, exporting, and generating reports.
     """
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, directory_mode=False):
         """
-        Initializes the VCFManager with the provided file path. Validates the file's existence.
+        Initializes the VCFManager with the provided file path. Supports both
+        file and directory operations via the `directory_mode` flag.
+
+        Args:
+            file_path (str): Path to the VCF file or directory.
+            directory_mode (bool): Whether the manager is operating in directory mode.
         """
-        self.file_path = file_path # Path to concatanated contacts file.
+        self.file_path = file_path  # Path to the file or directory.
+        self.directory_mode = directory_mode  # Flag to toggle between file and directory modes.
         self.contacts = []  # List to store individual contact objects.
         self.tally = defaultdict(int)  # Dictionary to keep track of contact statistics.
         self.total_contacts = 0  # Counter for the total number of contacts.
@@ -21,98 +27,101 @@ class VCFManager:
         if os.path.exists(file_path):
             self.load_vcf()
         else:
-            print(f"ERROR: File '{file_path}' not found.")
+            print(f"ERROR: File or directory '{file_path}' not found.")
             sys.exit(2)
 
     def load_vcf(self):
         """
-        Loads and parses the VCF file, storing contacts in the `contacts` list.
+        Loads and parses the VCF file(s), storing contacts in the `contacts` list.
+        If in directory mode, loads all `.vcf` files in the directory.
         """
-        try:
-            with open(self.file_path, 'r') as file:
-                vcf_data = file.read()
-            self.contacts = list(vobject.readComponents(vcf_data))
-            self.total_contacts = len(self.contacts)
-            print(f"INFO: Loaded {self.total_contacts} contacts.")
-        except Exception as e:
-            print(f"ERROR: Could not load VCF file: {e}")
-            sys.exit(2)
+        if self.directory_mode:
+            # Directory mode
+            if not os.path.isdir(self.file_path):
+                print(f"ERROR: Path '{self.file_path}' is not a directory.")
+                sys.exit(2)
+            
+            # Gather only vcf files
+            for file_name in os.listdir(self.file_path):
+                file_path = os.path.join(self.file_path, file_name)
+                if os.path.isfile(file_path) and file_name.lower().endswith('.vcf'):
+                    try:
+                        with open(file_path, 'r') as file:
+                            vcf_data = file.read()
+                            contacts = list(vobject.readComponents(vcf_data))
+                            self.contacts.extend(contacts)
+                            print(f"INFO: Loaded {len(contacts)} contacts from {file_name}.")
+                    except Exception as e:
+                        print(f"ERROR: Could not read VCF file {file_name}: {e}")
+        else:
+            # Single file mode
+            try:
+                with open(self.file_path, 'r') as file:
+                    vcf_data = file.read()
+                self.contacts = list(vobject.readComponents(vcf_data))
+                self.total_contacts = len(self.contacts)
+                print(f"INFO: Loaded {self.total_contacts} contacts from {self.file_path}.")
+            except Exception as e:
+                print(f"ERROR: Could not load VCF file: {e}")
+                sys.exit(2)
 
     def split_vcf(self, output_path):
         """
         Splits the contacts in the VCF file into individual files, one for each contact.
         Files are saved in a folder named 'split' within the specified output path.
         """
-        # Create a 'split' directory within the output path
         split_folder = os.path.join(output_path, "split")
         os.makedirs(split_folder, exist_ok=True)
 
-        unknown_contact_counter = 0 # Initialise unknown contact tally.
+        unknown_contact_counter = 0
 
         for contact in self.contacts:
-            # Determine the file name based on available contact details.
-            if hasattr(contact, 'fn') and contact.fn.value.strip(): # Check full name attribute first.
+            if hasattr(contact, 'fn') and contact.fn.value.strip():
                 file_name = contact.fn.value.replace(" ", "_")
-            elif hasattr(contact, 'n') and (contact.n.value.given or contact.n.value.family): # Check name fields second.
+            elif hasattr(contact, 'n') and (contact.n.value.given or contact.n.value.family):
                 first_name = contact.n.value.given if contact.n.value.given else "Unknown"
                 last_name = contact.n.value.family if contact.n.value.family else "Unknown"
                 file_name = f"{first_name}_{last_name}".replace(" ", "_")
             else:
-                file_name = f"unknown_contact_{unknown_contact_counter:04d}" # Assign unknown contact label if no names found.
+                file_name = f"unknown_contact_{unknown_contact_counter:04d}"
                 unknown_contact_counter += 1
 
-            # Normalize CATEGORIES field to ensure compatibility
             if hasattr(contact, 'categories'):
                 contact.categories.value = [cat.replace(" ", "_") for cat in contact.categories.value]
 
-            # Generate the path for the contact file
             contact_file = os.path.join(split_folder, f"{file_name}.vcf")
 
             try:
-                # Write the contact to a file
                 with open(contact_file, 'w') as file:
                     file.write(contact.serialize())
             except Exception as e:
                 print(f"ERROR: Could not export VCF file: {file_name}.vcf: {e}")
 
-    def combine_vcf(self, directory, output_file):
-        """
-        Combines multiple VCF files from a specified directory into a single VCF file.
-        """
-        if not os.path.isdir(directory):
-            print(f"ERROR: '{directory}' is not a valid directory.")
-            return
+    def combine_vcf(self, output_file):
+            """
+            Combines the contents of the loaded VCF contacts into a single output VCF file.
 
-        merged_contacts = []
+            Args:
+                output_file (str): Path for the output combined VCF file.
+            """
+            if not self.contacts:
+                print("ERROR: No contacts loaded. Use load_vcf to load contacts first.")
+                return
 
-        for file_name in os.listdir(directory):
-            file_path = os.path.join(directory, file_name)
-            if os.path.isfile(file_path) and file_name.lower().endswith('.vcf'):
-                try:
-                    with open(file_path, 'r') as file:
-                        vcf_data = file.read()
-                        contacts = list(vobject.readComponents(vcf_data))
-                        for contact in contacts:
+            try:
+                with open(output_file, 'w') as file:
+                    for contact in self.contacts:
+                        if hasattr(contact, 'categories'):
                             # Normalize CATEGORIES field for compatibility
-                            if hasattr(contact, 'categories'):
-                                contact.categories.value = [cat.replace(" ", "_") for cat in contact.categories.value]
-                        merged_contacts.extend(contacts)
-                        print(f"INFO: Merged: {file_name}")
-                except Exception as e:
-                    print(f"ERROR: Could not read VCF file {file_name}: {e}")
-
-        try:
-            with open(output_file, 'w') as file:
-                for contact in merged_contacts:
-                    file.write(contact.serialize())
-            print(f"INFO: VCF merge completed. Output saved to {output_file}.")
-        except Exception as e:
-            print(f"ERROR: Could not write to {output_file}: {e}")
+                            contact.categories.value = [cat.replace(" ", "_") for cat in contact.categories.value]
+                        file.write(contact.serialize())
+                print(f"INFO: Combined VCF file saved to {output_file}.")
+            except Exception as e:
+                print(f"ERROR: Could not write to {output_file}: {e}")
 
     def tally_contents(self):
         """
-        Generates a tally of various contact attributes, such as those with full names,
-        multiple numbers, birthdays, etc.
+        Generates a tally of various contact attributes.
         """
         self.tally.clear()
 
@@ -133,28 +142,17 @@ class VCFManager:
     def assign_group(self, contacts, group_name):
         """
         Assigns a group name to the provided list of contact objects.
-        Skips contacts that are already assigned to the specified group.
-        Maintains existing groups for each contact.
-        
-        Args:
-            contacts (list): List of contact objects to be assigned to the group.
-            group_name (str): Name of the group to assign.
         """
         for contact in contacts:
-            # Ensure the contact has a categories attribute
             if not hasattr(contact, 'categories'):
                 contact.add('categories').value = []
 
-            # Check if the group name already exists in the contact's categories
-            if group_name in contact.categories.value:
-                continue  # Skip if the contact is already in the group
-
-            # Add the new group while preserving existing groups
-            contact.categories.value.append(group_name)
+            if group_name not in contact.categories.value:
+                contact.categories.value.append(group_name)
 
     def generate_report(self):
         """
-        Prints a summary report of the tally data, including percentages for each category.
+        Prints a summary report of the tally data.
         """
         if not self.tally:
             print("ERROR: No data to report.")
